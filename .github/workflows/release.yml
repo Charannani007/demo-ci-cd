@@ -7,28 +7,26 @@ on:
 jobs:
   release_snapshot:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout release branch
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Create snapshot with timestamp
+      - name: Zip the project as snapshot
         run: |
           mkdir -p snapshots
-          timestamp=$(date +'%Y%m%d-%H%M%S')
-          zip_name="project-snapshot-${timestamp}.zip"
-          zip -r "snapshots/$zip_name" .
-          echo "ZIP_NAME=$zip_name" >> $GITHUB_ENV
+          zip -r snapshots/project-snapshot.zip .
 
-      - name: Commit snapshot zip to release branch
+      - name: Commit snapshot zip (override previous)
         run: |
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
 
-          git add "snapshots/$ZIP_NAME"
-          git commit -m "Add snapshot $ZIP_NAME"
+          git add snapshots/project-snapshot.zip
+          git commit -m "Update snapshot ZIP (overwritten)" || echo "No changes to commit"
           git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:release
 
       - name: Done
-        run: echo "✅ Snapshot $ZIP_NAME committed to snapshots/ in release branch."
+        run: echo "Snapshot ZIP updated in snapshots/ folder on release branch."
