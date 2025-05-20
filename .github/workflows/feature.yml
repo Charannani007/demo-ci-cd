@@ -1,0 +1,23 @@
+name: Feature Merge Pipeline
+
+on:
+  push:
+    branches: [feature]
+
+jobs:
+  merge_to_develop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Merge feature into develop
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git fetch origin
+          git checkout develop
+          git merge origin/feature --no-ff --allow-unrelated-histories -m "Auto-merged feature into develop"
+          git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git develop
