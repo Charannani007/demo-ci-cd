@@ -9,23 +9,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout release branch
+      - name: Checkout the release branch
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Zip the project as snapshot
+      - name: Zip the project as a snapshot
         run: |
           mkdir -p output
           zip -r output/project-snapshot.zip .
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: release-snapshot
           name: "Release Snapshot"
-          body: "Latest snapshot uploaded from release branch"
-          files: output/project-snapshot.zip
+          body: "Auto-generated snapshot on push to release branch."
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - name: Done
-        run: echo "Snapshot uploaded as GitHub Release asset."
+      - name: Upload snapshot ZIP to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: output/project-snapshot.zip
+          tag_name: release-snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
