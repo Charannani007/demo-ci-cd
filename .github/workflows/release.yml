@@ -9,24 +9,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout release branch
+      - name: Checkout the release branch
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Zip the project as snapshot
+      - name: Zip the project as a snapshot
         run: |
-          mkdir -p snapshots
-          zip -r snapshots/project-snapshot.zip .
+          mkdir -p output
+          zip -r output/project-snapshot.zip .
 
-      - name: Commit snapshot zip (override previous)
-        run: |
-          git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: release-snapshot
+          name: "Release Snapshot"
+          body: "Auto-generated snapshot on push to release branch."
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-          git add snapshots/project-snapshot.zip
-          git commit -m "Update snapshot ZIP (overwritten)" || echo "No changes to commit"
-          git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:release
-
-      - name: Done
-        run: echo "Snapshot ZIP updated in snapshots/ folder on release branch."
+      - name: Upload snapshot ZIP to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: output/project-snapshot.zip
+          tag_name: release-snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
