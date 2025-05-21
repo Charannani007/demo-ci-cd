@@ -1,4 +1,4 @@
-name: Release Snapshot
+name: Release Snapshot & Deploy
 
 on:
   push:
@@ -9,12 +9,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout the release branch
+      - name: Checkout release branch
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Zip the project as a snapshot
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Restore Maven settings.xml from secret
+        run: |
+          echo "${{ secrets.MAVEN_SETTINGS_B64 }}" | base64 --decode > settings.xml
+
+      - name: Deploy to CloudHub via Maven
+        run: |
+          mvn deploy -DmuleDeploy \
+                     -Dver=1 \
+                     -Denv=dev \
+                     -DconnectedAppClientId=${{ secrets.CLIENT_ID }} \
+                     -DconnectedAppClientSecret=${{ secrets.CLIENT_SECRET }} \
+                     -Dgrant_type=client_credentials \
+                     -s settings.xml
+
+      - name: Zip the project
         run: |
           mkdir -p output
           zip -r output/project-snapshot.zip .
@@ -28,10 +48,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - name: Upload snapshot ZIP to release
+      - name: Upload ZIP to Release
         uses: softprops/action-gh-release@v1
         with:
           files: output/project-snapshot.zip
           tag_name: release-snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+      - name: Clean up
+        run: rm -f settings.xml
