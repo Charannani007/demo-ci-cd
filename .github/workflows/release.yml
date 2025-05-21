@@ -1,11 +1,12 @@
-name: Release Snapshot & Deploy
+name: Release Build and Deploy with Base64 Encoded Maven Settings
 
 on:
   push:
-    branches: [release]
+    branches:
+      - release
 
 jobs:
-  release_snapshot:
+  build_deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -14,27 +15,27 @@ jobs:
         with:
           token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Set up Java
+      - name: Set up Java 11
         uses: actions/setup-java@v4
         with:
           java-version: '11'
           distribution: 'temurin'
 
-      - name: Restore Maven settings.xml from secret
+      - name: Decode and save Maven settings.xml
         run: |
-          echo "${{ secrets.MAVEN_SETTINGS_B64 }}" | base64 --decode > settings.xml
+          echo "${{ secrets.MAVEN_SETTINGS_B64 }}" | base64 -d > $HOME/.m2/settings.xml
 
-      - name: Deploy to CloudHub via Maven
+      - name: Build and Deploy with Maven using custom settings.xml
         run: |
           mvn deploy -DmuleDeploy \
-                     -Dver=1 \
-                     -Denv=dev \
-                     -DconnectedAppClientId=${{ secrets.CLIENT_ID }} \
-                     -DconnectedAppClientSecret=${{ secrets.CLIENT_SECRET }} \
-                     -Dgrant_type=client_credentials \
-                     -s settings.xml
+            -Dver=1 \
+            -Denv=dev \
+            -DconnectedAppClientId=${{ secrets.CLIENT_ID }} \
+            -DconnectedAppClientSecret=${{ secrets.CLIENT_SECRET }} \
+            -Dgrant_type=client_credentials \
+            -s $HOME/.m2/settings.xml
 
-      - name: Zip the project
+      - name: Package Snapshot ZIP
         run: |
           mkdir -p output
           zip -r output/project-snapshot.zip .
@@ -48,13 +49,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - name: Upload ZIP to Release
+      - name: Upload snapshot ZIP to Release
         uses: softprops/action-gh-release@v1
         with:
           files: output/project-snapshot.zip
           tag_name: release-snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-
-      - name: Clean up
-        run: rm -f settings.xml
