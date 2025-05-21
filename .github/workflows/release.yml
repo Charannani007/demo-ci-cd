@@ -1,4 +1,4 @@
-name: Release Snapshot & Deploy
+name: Release Snapshot and Deploy
 
 on:
   push:
@@ -9,32 +9,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout release branch
+      - name: Checkout the release branch
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Set up Java
+      - name: Set up Java and Maven
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
           distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
 
-      - name: Restore Maven settings.xml from secret
+      - name: Restore Maven settings from secret
         run: |
           echo "${{ secrets.MAVEN_SETTINGS_B64 }}" | base64 --decode > settings.xml
 
-      - name: Deploy to CloudHub via Maven
-        run: |
-          mvn deploy -DmuleDeploy \
-                     -Dver=1 \
-                     -Denv=dev \
-                     -DconnectedAppClientId=${{ secrets.CLIENT_ID }} \
-                     -DconnectedAppClientSecret=${{ secrets.CLIENT_SECRET }} \
-                     -Dgrant_type=client_credentials \
-                     -s settings.xml
+      - name: Build the project
+        run: mvn clean install -s settings.xml
 
-      - name: Zip the project
+      - name: Deploy to CloudHub
+        run: >
+          mvn deploy -DmuleDeploy
+          -Dver=1
+          -Denv=dev
+          -DconnectedAppClientId=${{ secrets.CLIENT_ID }}
+          -DconnectedAppClientSecret=${{ secrets.CLIENT_SECRET }}
+          -Dgrant_type=client_credentials
+          -s settings.xml
+
+      - name: Zip the project as a snapshot
         run: |
           mkdir -p output
           zip -r output/project-snapshot.zip .
@@ -48,7 +52,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - name: Upload ZIP to Release
+      - name: Upload snapshot ZIP to release
         uses: softprops/action-gh-release@v1
         with:
           files: output/project-snapshot.zip
@@ -56,5 +60,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - name: Clean up
-        run: rm -f settings.xml
+      - name: Cleanup sensitive files
+        run: rm settings.xml
