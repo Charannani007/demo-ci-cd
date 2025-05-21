@@ -23,11 +23,12 @@ jobs:
 
       - name: Decode and save Maven settings.xml
         run: |
+          mkdir -p $HOME/.m2
           echo "${{ secrets.MAVEN_SETTINGS_B64 }}" | base64 -d > $HOME/.m2/settings.xml
 
       - name: Build and Deploy with Maven using custom settings.xml
         run: |
-          mvn deploy -DmuleDeploy \
+          mvn clean deploy -DmuleDeploy \
             -Dver=1 \
             -Denv=dev \
             -DconnectedAppClientId=${{ secrets.CLIENT_ID }} \
@@ -35,10 +36,11 @@ jobs:
             -Dgrant_type=client_credentials \
             -s $HOME/.m2/settings.xml
 
-      - name: Package Snapshot ZIP
+      - name: Find generated JAR file
+        id: find_jar
         run: |
-          mkdir -p output
-          zip -r output/project-snapshot.zip .
+          JAR_FILE=$(find target -type f -name "*.jar" | head -n 1)
+          echo "JAR_FILE=$JAR_FILE" >> $GITHUB_ENV
 
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v1
@@ -49,10 +51,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - name: Upload snapshot ZIP to Release
+      - name: Upload JAR to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: output/project-snapshot.zip
+          files: ${{ env.JAR_FILE }}
           tag_name: release-snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
